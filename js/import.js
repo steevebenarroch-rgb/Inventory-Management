@@ -1,17 +1,24 @@
 // ── File parsing ──────────────────────────────────────────────────────────────
-// Known header keywords — used to detect header row in reports with title rows
-const HEADER_KEYWORDS = ['din','produit','qty','qte','quantity','ndc','name','drug','date','dispens','servi'];
+// Header detection: score each row — pick the one with the most keyword matches.
+// Title rows ("Rapport de dispensation du...") typically match only 1 keyword;
+// the real header row matches many ("DIN", "Produit", "Qté servie", etc.).
+const HEADER_KEYWORDS = [
+  'din','gtin','produit','qte','qty','quantity','quantite',
+  'ndc','name','format','fabricant','fournisseur','servi','serv',
+  'drug','medication','on_hand','stock','dispens',
+];
 
 function findHeaderRow(sheet) {
-  // Get raw array-of-arrays (no header detection)
   const rows = XLSX.utils.sheet_to_json(sheet, { header:1, defval:'' });
+  let bestRow = 0, bestScore = 0;
   for (let i = 0; i < Math.min(rows.length, 10); i++) {
-    const row = rows[i];
-    const joined = row.join(' ').toLowerCase()
-      .normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-    if (HEADER_KEYWORDS.some(kw => joined.includes(kw))) return i;
+    const joined = rows[i].join(' ')
+      .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+      .toLowerCase();
+    const score = HEADER_KEYWORDS.filter(kw => joined.includes(kw)).length;
+    if (score > bestScore) { bestScore = score; bestRow = i; }
   }
-  return 0; // fallback: assume first row
+  return bestRow; // highest-scoring row wins
 }
 
 function parseFile(file, callback) {
@@ -84,21 +91,18 @@ function importStock(rawData, snapDate, filename) {
   const existing = DB.get('stock', []).filter(s => s.snapshotDate !== snapDate);
   const newSnaps = [];
   const detectedStockCols = rawData.length > 0 ? Object.keys(normaliseRow(rawData[0], STOCK_ALIASES)) : [];
-  let stockQtyMissingWarned = false;
+  errors.push(`Detected columns: [${detectedStockCols.join(', ')}]`);
   for (const [i, raw] of rawData.entries()) {
     const row = normaliseRow(raw, STOCK_ALIASES);
-    const qty = Math.round(parseFloat(row.quantity));
-    if (isNaN(qty) || qty < 0) {
-      if (!stockQtyMissingWarned && row.quantity === undefined) {
-        errors.push(`Quantity column not found. Detected columns: ${detectedStockCols.join(', ')}.`);
-        stockQtyMissingWarned = true;
-      } else {
-        errors.push(`Row ${i+2}: invalid quantity`);
-      }
+    const rawQty = row.quantity;
+    const qty = Math.round(parseFloat(rawQty));
+    if (rawQty === undefined || isNaN(qty) || qty < 0) {
+      if (errors.length <= 52)
+        errors.push(`Row ${i+2} SKIPPED — ${row.name||row.ndc||'?'}: qty=${rawQty===undefined?'(column not found)':JSON.stringify(rawQty)}`);
       continue;
     }
     const product = resolveOrCreateProduct(row);
-    if (!product) { errors.push(`Row ${i+2}: cannot identify product (need ndc or name column)`); continue; }
+    if (!product) { errors.push(`Row ${i+2} SKIPPED — no product identifier (need DIN or name)`); continue; }
     newSnaps.push({ productId: product.id, quantity: qty, snapshotDate: snapDate });
     ok++;
   }
@@ -116,18 +120,15 @@ function importDispenses(rawData, periodStart, periodEnd, filename) {
   const hasDateCol = rawData.length > 0 &&
     Object.keys(normaliseRow(rawData[0], DISPENSE_ALIASES)).includes('date');
   const newRecords = [];
-  // Track columns detected in first data row for error diagnostics
   const detectedCols = rawData.length > 0 ? Object.keys(normaliseRow(rawData[0], DISPENSE_ALIASES)) : [];
-  let qtyMissingWarned = false;
+  errors.push(`Detected columns: [${detectedCols.join(', ')}]`);
   for (const [i, raw] of rawData.entries()) {
     const row = normaliseRow(raw, DISPENSE_ALIASES);
     const rawQty = row.quantity;
-    const qty = Math.round(parseFloat(rawQty));  // parseFloat handles decimals (0.20, 73.00)
-    if (isNaN(qty) || qty <= 0) {
-      if (!qtyMissingWarned && rawQty === undefined) {
-        errors.push(`Quantity column not found. Detected columns: ${detectedCols.join(', ')}. Expected "Qté servie" or similar.`);
-        qtyMissingWarned = true;
-      }
+    const qty = Math.round(parseFloat(rawQty));
+    if (rawQty === undefined || isNaN(qty) || qty <= 0) {
+      if (errors.length <= 52)
+        errors.push(`Row ${i+2} SKIPPED — ${row.name||row.ndc||'?'}: qty=${rawQty===undefined?'(column not found)':JSON.stringify(rawQty)}`);
       continue;
     }
     let dispDate = fallbackDate;
@@ -136,7 +137,7 @@ function importDispenses(rawData, periodStart, periodEnd, filename) {
       if (!isNaN(parsed)) dispDate = parsed.toISOString().split('T')[0];
     }
     const product = resolveOrCreateProduct(row);
-    if (!product) { errors.push(`Row ${i+2}: cannot identify product`); continue; }
+    if (!product) { errors.push(`Row ${i+2} SKIPPED — no product identifier (need DIN or name)`); continue; }
     newRecords.push({ productId: product.id, quantity: qty, date: dispDate });
     ok++;
   }
@@ -152,7 +153,7 @@ function logBatch(filename, type, total, ok, errors, snapDate, periodStart, peri
     id: Date.now().toString(),
     filename, type, total, ok, failed: errors.length,
     status: errors.length === 0 ? 'success' : ok > 0 ? 'partial' : 'failed',
-    errors: errors.length ? errors.slice(0,30).join('\n') : null,
+    errors: errors.length ? errors.slice(0, 55).join('\n') : null,
     date:   snapDate,
     period: periodStart && periodEnd ? `${periodStart} – ${periodEnd}` : null,
     importedAt: new Date().toLocaleString(),
@@ -165,21 +166,32 @@ function renderImport() {
   const batches = DB.get('importBatches', []).slice().reverse().slice(0, 20);
   const today   = new Date().toISOString().split('T')[0];
 
-  const batchRows = batches.map(b => `<tr>
-    <td class="fw-semibold small">${b.filename}</td>
-    <td>${b.type==='stock_snapshot'
-      ?'<span class="badge bg-success-subtle text-success border border-success-subtle">Stock Snapshot</span>'
-      :'<span class="badge bg-info-subtle text-info border border-info-subtle">Dispensing History</span>'}</td>
-    <td class="text-muted small">${b.period||b.date||'—'}</td>
-    <td class="text-center">${b.total}</td>
-    <td class="text-center text-success fw-bold">${b.ok}</td>
-    <td class="text-center text-danger">${b.failed}</td>
-    <td>${b.status==='success'?'<span class="badge bg-success">Success</span>':b.status==='partial'?'<span class="badge bg-warning text-dark">Partial</span>':'<span class="badge bg-danger">Failed</span>'}</td>
-    <td class="text-muted small">${b.importedAt||''}</td>
-    <td>
-      ${b.errors?`<button class="btn btn-sm btn-outline-danger py-0 px-1 me-1" onclick="showErrors('${b.id}')"><i class="bi bi-exclamation-circle"></i></button>`:''}
-      <button class="btn btn-sm btn-outline-danger py-0 px-1" onclick="deleteImport('${b.id}')"><i class="bi bi-trash"></i></button>
-    </td></tr>`).join('');
+  const batchRows = batches.map(b => {
+    const statusBadge = b.status==='success'
+      ? '<span class="badge bg-success">OK</span>'
+      : b.status==='partial'
+        ? '<span class="badge bg-warning text-dark">Partial</span>'
+        : '<span class="badge bg-danger">Failed</span>';
+    const errPanel = b.errors
+      ? `<tr><td colspan="9" class="p-0">
+           <div class="alert alert-warning rounded-0 mb-0 py-2 px-3 small" style="border-left:4px solid #ffc107;">
+             <strong>Details:</strong><pre class="mb-0 mt-1 small" style="white-space:pre-wrap;max-height:200px;overflow-y:auto;">${b.errors}</pre>
+           </div></td></tr>`
+      : '';
+    return `<tr>
+      <td class="fw-semibold small">${b.filename}</td>
+      <td>${b.type==='stock_snapshot'
+        ?'<span class="badge bg-success-subtle text-success border border-success-subtle">Stock</span>'
+        :'<span class="badge bg-info-subtle text-info border border-info-subtle">Dispensing</span>'}</td>
+      <td class="text-muted small">${b.period||b.date||'—'}</td>
+      <td class="text-center">${b.total}</td>
+      <td class="text-center text-success fw-bold">${b.ok}</td>
+      <td class="text-center text-danger">${b.failed||''}</td>
+      <td>${statusBadge}</td>
+      <td class="text-muted small">${b.importedAt||''}</td>
+      <td><button class="btn btn-sm btn-outline-danger py-0 px-1" onclick="deleteImport('${b.id}')"><i class="bi bi-trash"></i></button></td>
+    </tr>${errPanel}`;
+  }).join('');
 
   document.getElementById('main').innerHTML = `
     ${dataBanner()}
@@ -283,10 +295,6 @@ function renderImport() {
   });
 }
 
-function showErrors(id) {
-  const b = DB.get('importBatches', []).find(b => b.id === id);
-  if (b?.errors) alert('Import errors:\n\n' + b.errors);
-}
 
 function deleteImport(id) {
   if (!confirm('Delete this import record? The data it loaded will NOT be removed.')) return;
