@@ -1,4 +1,19 @@
 // ── File parsing ──────────────────────────────────────────────────────────────
+// Known header keywords — used to detect header row in reports with title rows
+const HEADER_KEYWORDS = ['din','produit','qty','qte','quantity','ndc','name','drug','date','dispens','servi'];
+
+function findHeaderRow(sheet) {
+  // Get raw array-of-arrays (no header detection)
+  const rows = XLSX.utils.sheet_to_json(sheet, { header:1, defval:'' });
+  for (let i = 0; i < Math.min(rows.length, 10); i++) {
+    const row = rows[i];
+    const joined = row.join(' ').toLowerCase()
+      .normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    if (HEADER_KEYWORDS.some(kw => joined.includes(kw))) return i;
+  }
+  return 0; // fallback: assume first row
+}
+
 function parseFile(file, callback) {
   const ext = file.name.split('.').pop().toLowerCase();
   if (ext === 'csv') {
@@ -9,8 +24,16 @@ function parseFile(file, callback) {
     const reader = new FileReader();
     reader.onload = e => {
       try {
-        const wb = XLSX.read(e.target.result, { type:'array' });
-        callback(XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { defval:'' }), null);
+        const wb   = XLSX.read(e.target.result, { type:'array' });
+        const sheet = wb.Sheets[wb.SheetNames[0]];
+        const headerRow = findHeaderRow(sheet);
+        // Re-parse using the detected header row
+        const rows = XLSX.utils.sheet_to_json(sheet, { header:1, defval:'' });
+        const headers = rows[headerRow];
+        const data = rows.slice(headerRow + 1)
+          .filter(r => r.some(c => c !== ''))
+          .map(r => Object.fromEntries(headers.map((h, i) => [h, r[i] ?? ''])));
+        callback(data, null);
       } catch(err) { callback(null, err.message); }
     };
     reader.readAsArrayBuffer(file);
@@ -60,10 +83,20 @@ function importStock(rawData, snapDate, filename) {
   let ok = 0;
   const existing = DB.get('stock', []).filter(s => s.snapshotDate !== snapDate);
   const newSnaps = [];
+  const detectedStockCols = rawData.length > 0 ? Object.keys(normaliseRow(rawData[0], STOCK_ALIASES)) : [];
+  let stockQtyMissingWarned = false;
   for (const [i, raw] of rawData.entries()) {
     const row = normaliseRow(raw, STOCK_ALIASES);
-    const qty = parseInt(row.quantity);
-    if (isNaN(qty) || qty < 0) { errors.push(`Row ${i+2}: invalid quantity`); continue; }
+    const qty = Math.round(parseFloat(row.quantity));
+    if (isNaN(qty) || qty < 0) {
+      if (!stockQtyMissingWarned && row.quantity === undefined) {
+        errors.push(`Quantity column not found. Detected columns: ${detectedStockCols.join(', ')}.`);
+        stockQtyMissingWarned = true;
+      } else {
+        errors.push(`Row ${i+2}: invalid quantity`);
+      }
+      continue;
+    }
     const product = resolveOrCreateProduct(row);
     if (!product) { errors.push(`Row ${i+2}: cannot identify product (need ndc or name column)`); continue; }
     newSnaps.push({ productId: product.id, quantity: qty, snapshotDate: snapDate });
@@ -83,10 +116,20 @@ function importDispenses(rawData, periodStart, periodEnd, filename) {
   const hasDateCol = rawData.length > 0 &&
     Object.keys(normaliseRow(rawData[0], DISPENSE_ALIASES)).includes('date');
   const newRecords = [];
+  // Track columns detected in first data row for error diagnostics
+  const detectedCols = rawData.length > 0 ? Object.keys(normaliseRow(rawData[0], DISPENSE_ALIASES)) : [];
+  let qtyMissingWarned = false;
   for (const [i, raw] of rawData.entries()) {
     const row = normaliseRow(raw, DISPENSE_ALIASES);
-    const qty = parseInt(row.quantity);
-    if (isNaN(qty) || qty <= 0) continue;
+    const rawQty = row.quantity;
+    const qty = Math.round(parseFloat(rawQty));  // parseFloat handles decimals (0.20, 73.00)
+    if (isNaN(qty) || qty <= 0) {
+      if (!qtyMissingWarned && rawQty === undefined) {
+        errors.push(`Quantity column not found. Detected columns: ${detectedCols.join(', ')}. Expected "Qté servie" or similar.`);
+        qtyMissingWarned = true;
+      }
+      continue;
+    }
     let dispDate = fallbackDate;
     if (hasDateCol && row.date) {
       const parsed = new Date(row.date);
