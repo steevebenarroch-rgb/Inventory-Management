@@ -1,0 +1,110 @@
+{% extends "base.html" %}
+{% block title %}Transactions — PharmaCare{% endblock %}
+{% block content %}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <h2 class="fw-bold mb-0"><i class="bi bi-arrow-left-right me-2 text-primary"></i>Transaction History</h2>
+  <a href="{{ url_for('inventory_adjust') }}" class="btn btn-primary">
+    <i class="bi bi-plus-circle me-1"></i>New Transaction
+  </a>
+</div>
+
+<!-- Filters -->
+<div class="card border-0 shadow-sm mb-4">
+  <div class="card-body">
+    <form method="get" class="row g-2 align-items-end">
+      <div class="col-md-3">
+        <label class="form-label small fw-semibold">Search</label>
+        <input type="text" name="search" class="form-control" placeholder="Product, reference, lot…" value="{{ search }}">
+      </div>
+      <div class="col-md-2">
+        <label class="form-label small fw-semibold">Type</label>
+        <select name="type" class="form-select">
+          <option value="">All Types</option>
+          {% for t in ['received','dispensed','adjusted','expired','returned'] %}
+          <option value="{{ t }}" {% if selected_type == t %}selected{% endif %}>{{ t|title }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-md-2">
+        <label class="form-label small fw-semibold">From</label>
+        <input type="date" name="date_from" class="form-control" value="{{ date_from }}">
+      </div>
+      <div class="col-md-2">
+        <label class="form-label small fw-semibold">To</label>
+        <input type="date" name="date_to" class="form-control" value="{{ date_to }}">
+      </div>
+      <div class="col-md-auto">
+        <button type="submit" class="btn btn-outline-primary">
+          <i class="bi bi-search me-1"></i>Filter
+        </button>
+        <a href="{{ url_for('transactions') }}" class="btn btn-outline-secondary ms-1">Clear</a>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Table -->
+<div class="card border-0 shadow-sm">
+  <div class="card-body p-0">
+    <div class="table-responsive">
+      <table class="table table-hover align-middle mb-0">
+        <thead class="table-light">
+          <tr>
+            <th>#</th>
+            <th>Product</th>
+            <th>Type</th>
+            <th class="text-center">Qty</th>
+            <th>Lot #</th>
+            <th>Reference</th>
+            <th>By</th>
+            <th>Date</th>
+            <th>Notes</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for txn in transactions %}
+          <tr>
+            <td class="text-muted small">{{ txn.id }}</td>
+            <td class="fw-semibold small">{{ txn.product.name if txn.product else 'Unknown' }}</td>
+            <td>
+              {% if txn.transaction_type == 'received' %}
+                <span class="badge bg-success">Received</span>
+              {% elif txn.transaction_type == 'dispensed' %}
+                <span class="badge bg-primary">Dispensed</span>
+              {% elif txn.transaction_type == 'expired' %}
+                <span class="badge bg-danger">Expired</span>
+              {% elif txn.transaction_type == 'adjusted' %}
+                <span class="badge bg-secondary">Adjusted</span>
+              {% elif txn.transaction_type == 'returned' %}
+                <span class="badge bg-warning text-dark">Returned</span>
+              {% else %}
+                <span class="badge bg-light text-dark">{{ txn.transaction_type|title }}</span>
+              {% endif %}
+            </td>
+            <td class="text-center fw-bold">{{ txn.quantity }}</td>
+            <td class="small text-muted">{{ txn.lot_number or '—' }}</td>
+            <td class="small">{{ txn.reference or '—' }}</td>
+            <td class="small text-muted">{{ txn.performed_by or '—' }}</td>
+            <td class="small text-muted">
+              {{ txn.created_at.strftime('%m/%d/%Y %H:%M') if txn.created_at else '' }}
+            </td>
+            <td class="small text-muted">{{ txn.notes or '—' }}</td>
+          </tr>
+          {% else %}
+          <tr>
+            <td colspan="9" class="text-center text-muted py-5">
+              <i class="bi bi-inbox fs-2"></i>
+              <p class="mt-2">No transactions found.</p>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% if transactions %}
+    <div class="px-3 py-2 border-top text-muted small">{{ transactions|length }} transaction(s) shown (max 200)</div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

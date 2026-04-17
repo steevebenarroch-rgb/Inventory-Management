@@ -1,0 +1,186 @@
+{% extends "base.html" %}
+{% block title %}Import from EMS — PharmaCare{% endblock %}
+{% block content %}
+
+<div class="mb-4">
+  <h2 class="fw-bold mb-0"><i class="bi bi-cloud-upload me-2 text-primary"></i>Import from EMS</h2>
+  <p class="text-muted mt-1">Upload reports exported from your EMS (CSV or Excel) to update inventory automatically.</p>
+</div>
+
+<div class="row g-4">
+  <!-- Upload Form -->
+  <div class="col-lg-6">
+    <div class="card border-0 shadow-sm">
+      <div class="card-header bg-white border-0 pt-3">
+        <h6 class="fw-bold mb-0"><i class="bi bi-upload me-2 text-info"></i>Upload EMS Report</h6>
+      </div>
+      <div class="card-body">
+        <form method="post" enctype="multipart/form-data">
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Report Type <span class="text-danger">*</span></label>
+            <select name="import_type" class="form-select" id="importType" required>
+              <option value="">— Select type —</option>
+              <option value="dispensed">Dispensed (medications given to patients)</option>
+              <option value="received">Received (new stock received)</option>
+              <option value="adjustment">Adjustment (inventory correction)</option>
+            </select>
+            <div class="form-text" id="importHint"></div>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label fw-semibold">File <span class="text-danger">*</span></label>
+            <input type="file" name="file" class="form-control" accept=".csv,.xlsx,.xls" required>
+            <div class="form-text">Accepted formats: CSV, Excel (.xlsx, .xls). Max 16 MB.</div>
+          </div>
+
+          <button type="submit" class="btn btn-primary w-100">
+            <i class="bi bi-cloud-upload me-2"></i>Import
+          </button>
+        </form>
+      </div>
+    </div>
+
+    <!-- Template Downloads -->
+    <div class="card border-0 shadow-sm mt-3">
+      <div class="card-header bg-white border-0 pt-3">
+        <h6 class="fw-bold mb-0"><i class="bi bi-file-earmark-spreadsheet me-2 text-success"></i>Download Templates</h6>
+      </div>
+      <div class="card-body">
+        <p class="text-muted small mb-3">
+          If your EMS export doesn't match automatically, use these templates to format your data before importing.
+          The key column is <strong>ndc</strong> (or drug name) to match products.
+        </p>
+        <div class="d-grid gap-2">
+          <a href="{{ url_for('download_template', import_type='dispensed') }}" class="btn btn-outline-primary btn-sm">
+            <i class="bi bi-download me-2"></i>Dispensed Report Template
+          </a>
+          <a href="{{ url_for('download_template', import_type='received') }}" class="btn btn-outline-success btn-sm">
+            <i class="bi bi-download me-2"></i>Received Inventory Template
+          </a>
+          <a href="{{ url_for('download_template', import_type='adjustment') }}" class="btn btn-outline-secondary btn-sm">
+            <i class="bi bi-download me-2"></i>Adjustment Template
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Column Mapping Guide -->
+  <div class="col-lg-6">
+    <div class="card border-0 shadow-sm">
+      <div class="card-header bg-white border-0 pt-3">
+        <h6 class="fw-bold mb-0"><i class="bi bi-info-circle me-2 text-info"></i>Column Guide</h6>
+      </div>
+      <div class="card-body">
+        <p class="text-muted small">The importer auto-detects common column names from popular EMS systems. Supported aliases:</p>
+        <div class="table-responsive">
+          <table class="table table-sm table-bordered">
+            <thead class="table-light">
+              <tr><th>Expected Column</th><th>Also Accepted As</th></tr>
+            </thead>
+            <tbody class="small">
+              <tr><td><code>ndc</code></td><td>drug_code, national_drug_code, drug ndc</td></tr>
+              <tr><td><code>quantity</code></td><td>qty, qty_dispensed, qty_received</td></tr>
+              <tr><td><code>lot_number</code></td><td>lot, lot #, lot#</td></tr>
+              <tr><td><code>expiry_date</code></td><td>exp_date, expiration, expiration_date, exp</td></tr>
+              <tr><td><code>adjustment_type</code></td><td>type</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="alert alert-info small mb-0">
+          <i class="bi bi-lightbulb me-1"></i>
+          <strong>Tip:</strong> If your product isn't matched by NDC, the importer will also try to match
+          by product name. Make sure product names in your EMS match those in PharmaCare.
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Import History -->
+<div class="card border-0 shadow-sm mt-4">
+  <div class="card-header bg-white border-0 pt-3">
+    <h6 class="fw-bold mb-0"><i class="bi bi-clock-history me-2 text-secondary"></i>Recent Import History</h6>
+  </div>
+  <div class="card-body p-0">
+    <div class="table-responsive">
+      <table class="table table-hover align-middle mb-0">
+        <thead class="table-light">
+          <tr>
+            <th>File</th>
+            <th>Type</th>
+            <th class="text-center">Total</th>
+            <th class="text-center">Imported</th>
+            <th class="text-center">Failed</th>
+            <th>Status</th>
+            <th>Date</th>
+            <th>Errors</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for log in logs %}
+          <tr>
+            <td class="small fw-semibold">{{ log.filename }}</td>
+            <td><span class="badge bg-secondary">{{ log.import_type }}</span></td>
+            <td class="text-center small">{{ log.records_total }}</td>
+            <td class="text-center small text-success fw-bold">{{ log.records_imported }}</td>
+            <td class="text-center small text-danger">{{ log.records_failed }}</td>
+            <td>
+              {% if log.status == 'success' %}
+                <span class="badge bg-success">Success</span>
+              {% elif log.status == 'partial' %}
+                <span class="badge bg-warning text-dark">Partial</span>
+              {% elif log.status == 'failed' %}
+                <span class="badge bg-danger">Failed</span>
+              {% else %}
+                <span class="badge bg-secondary">{{ log.status }}</span>
+              {% endif %}
+            </td>
+            <td class="small text-muted">{{ log.imported_at.strftime('%m/%d %H:%M') if log.imported_at else '' }}</td>
+            <td>
+              {% if log.error_details %}
+              <button class="btn btn-sm btn-outline-danger py-0"
+                      data-bs-toggle="modal" data-bs-target="#errModal{{ log.id }}">
+                <i class="bi bi-exclamation-circle"></i>
+              </button>
+              <!-- Error Modal -->
+              <div class="modal fade" id="errModal{{ log.id }}" tabindex="-1">
+                <div class="modal-dialog modal-lg">
+                  <div class="modal-content">
+                    <div class="modal-header">
+                      <h6 class="modal-title">Import Errors — {{ log.filename }}</h6>
+                      <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                      <pre class="small text-danger mb-0">{{ log.error_details }}</pre>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              {% else %}—{% endif %}
+            </td>
+          </tr>
+          {% else %}
+          <tr>
+            <td colspan="8" class="text-center text-muted py-4">No imports yet.</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  const hints = {
+    dispensed: 'Required columns: ndc, quantity — Stock will be reduced (FIFO).',
+    received: 'Required columns: ndc, quantity — Optional: lot_number, expiry_date, location.',
+    adjustment: 'Required columns: ndc, quantity, adjustment_type (received/dispensed/adjusted).',
+  };
+  document.getElementById('importType').addEventListener('change', function() {
+    document.getElementById('importHint').textContent = hints[this.value] || '';
+  });
+</script>
+{% endblock %}

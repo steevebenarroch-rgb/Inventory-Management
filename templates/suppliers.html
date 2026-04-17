@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+{% block title %}Suppliers — PharmaCare{% endblock %}
+{% block content %}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <h2 class="fw-bold mb-0"><i class="bi bi-truck me-2 text-primary"></i>Suppliers</h2>
+  <a href="{{ url_for('supplier_new') }}" class="btn btn-primary">
+    <i class="bi bi-plus-circle me-1"></i>Add Supplier
+  </a>
+</div>
+
+<div class="card border-0 shadow-sm">
+  <div class="card-body p-0">
+    <div class="table-responsive">
+      <table class="table table-hover align-middle mb-0">
+        <thead class="table-light">
+          <tr>
+            <th>Name</th>
+            <th>Contact</th>
+            <th>Phone</th>
+            <th>Email</th>
+            <th>Products</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for sup in suppliers %}
+          <tr>
+            <td class="fw-semibold">{{ sup.name }}</td>
+            <td class="small">{{ sup.contact or '—' }}</td>
+            <td class="small">{{ sup.phone or '—' }}</td>
+            <td class="small">
+              {% if sup.email %}
+                <a href="mailto:{{ sup.email }}">{{ sup.email }}</a>
+              {% else %}—{% endif %}
+            </td>
+            <td class="text-center">
+              <span class="badge bg-secondary">{{ sup.products|length }}</span>
+            </td>
+            <td>
+              <a href="{{ url_for('supplier_edit', supplier_id=sup.id) }}" class="btn btn-sm btn-outline-secondary">
+                <i class="bi bi-pencil"></i>
+              </a>
+            </td>
+          </tr>
+          {% else %}
+          <tr>
+            <td colspan="6" class="text-center text-muted py-5">
+              <i class="bi bi-truck fs-2"></i>
+              <p class="mt-2">No suppliers yet. <a href="{{ url_for('supplier_new') }}">Add one?</a></p>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% if suppliers %}
+    <div class="px-3 py-2 border-top text-muted small">{{ suppliers|length }} supplier(s)</div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,113 @@
+{% extends "base.html" %}
+{% block title %}Products — PharmaCare{% endblock %}
+{% block content %}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <h2 class="fw-bold mb-0"><i class="bi bi-grid me-2 text-primary"></i>Product Catalog</h2>
+  <a href="{{ url_for('product_new') }}" class="btn btn-primary">
+    <i class="bi bi-plus-circle me-1"></i>Add Product
+  </a>
+</div>
+
+<!-- Filters -->
+<div class="card border-0 shadow-sm mb-4">
+  <div class="card-body">
+    <form method="get" class="row g-2 align-items-end">
+      <div class="col-md-4">
+        <label class="form-label small fw-semibold">Search</label>
+        <input type="text" name="search" class="form-control" placeholder="Name, generic name, NDC…" value="{{ search }}">
+      </div>
+      <div class="col-md-3">
+        <label class="form-label small fw-semibold">Category</label>
+        <select name="category_id" class="form-select">
+          <option value="">All Categories</option>
+          {% for cat in categories %}
+          <option value="{{ cat.id }}" {% if selected_category == cat.id|string %}selected{% endif %}>{{ cat.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-md-3">
+        <label class="form-label small fw-semibold">Supplier</label>
+        <select name="supplier_id" class="form-select">
+          <option value="">All Suppliers</option>
+          {% for sup in suppliers %}
+          <option value="{{ sup.id }}" {% if selected_supplier == sup.id|string %}selected{% endif %}>{{ sup.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-md-auto">
+        <button type="submit" class="btn btn-outline-primary">
+          <i class="bi bi-search me-1"></i>Filter
+        </button>
+        <a href="{{ url_for('products') }}" class="btn btn-outline-secondary ms-1">Clear</a>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Table -->
+<div class="card border-0 shadow-sm">
+  <div class="card-body p-0">
+    <div class="table-responsive">
+      <table class="table table-hover align-middle mb-0">
+        <thead class="table-light">
+          <tr>
+            <th>Product</th>
+            <th>NDC</th>
+            <th>Category</th>
+            <th>Supplier</th>
+            <th class="text-center">Stock</th>
+            <th class="text-center">Reorder At</th>
+            <th class="text-end">Unit Cost</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for p in products %}
+          <tr>
+            <td>
+              <div class="fw-semibold">{{ p.name }}</div>
+              <div class="text-muted small">{{ p.generic_name or '' }}</div>
+            </td>
+            <td class="small text-muted">{{ p.ndc or '—' }}</td>
+            <td><span class="badge bg-secondary bg-opacity-75">{{ p.category.name if p.category else '—' }}</span></td>
+            <td class="small">{{ p.supplier.name if p.supplier else '—' }}</td>
+            <td class="text-center">
+              {% if p.is_low_stock %}
+                <span class="badge bg-danger">{{ p.total_stock }}</span>
+              {% else %}
+                <span class="fw-semibold">{{ p.total_stock }}</span>
+              {% endif %}
+              <div class="text-muted" style="font-size:0.7rem;">{{ p.unit }}s</div>
+            </td>
+            <td class="text-center text-muted small">{{ p.reorder_point }}</td>
+            <td class="text-end small">${{ "%.2f"|format(p.unit_cost) }}</td>
+            <td>
+              <a href="{{ url_for('product_edit', product_id=p.id) }}" class="btn btn-sm btn-outline-secondary me-1">
+                <i class="bi bi-pencil"></i>
+              </a>
+              <form method="post" action="{{ url_for('product_delete', product_id=p.id) }}" class="d-inline"
+                    onsubmit="return confirm('Remove {{ p.name }}?')">
+                <button class="btn btn-sm btn-outline-danger">
+                  <i class="bi bi-trash"></i>
+                </button>
+              </form>
+            </td>
+          </tr>
+          {% else %}
+          <tr>
+            <td colspan="8" class="text-center text-muted py-5">
+              <i class="bi bi-inbox fs-2"></i>
+              <p class="mt-2">No products found. <a href="{{ url_for('product_new') }}">Add one?</a></p>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% if products %}
+    <div class="px-3 py-2 border-top text-muted small">{{ products|length }} product(s)</div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}
