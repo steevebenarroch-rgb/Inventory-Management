@@ -12,6 +12,17 @@ const DEFAULTS = {
 };
 
 const STOCK_ALIASES = {
+  // Canadian EMS (French) — DIN + common French column names
+  din:'ndc', gtin:'ndc',
+  produit:'name', nom_generique:'generic_name',
+  qte_en_stock:'quantity', qte:'quantity', quantite:'quantity',
+  prix_du_format:'unit_cost',
+  emballage:'package',
+  fabric:'manufacturer', fabricant:'manufacturer',
+  fourn:'supplier', fournisseur:'supplier',
+  config_min_max:'min_max_config',
+  total:'total_value',
+  // US / generic aliases
   drug_code:'ndc', drug_ndc:'ndc', national_drug_code:'ndc',
   drug_name:'name', product_name:'name', medication:'name',
   description:'name', item_description:'name', item_name:'name',
@@ -22,6 +33,13 @@ const STOCK_ALIASES = {
 };
 
 const DISPENSE_ALIASES = {
+  // Canadian EMS (French)
+  din:'ndc', gtin:'ndc',
+  produit:'name', nom_generique:'generic_name',
+  qte_dispensee:'quantity', quantite_dispensee:'quantity',
+  qte:'quantity', quantite:'quantity',
+  date_service:'date', date_dispense:'date', date_ordonnance:'date',
+  // US / generic aliases
   drug_code:'ndc', drug_ndc:'ndc', national_drug_code:'ndc',
   drug_name:'name', product_name:'name', medication:'name',
   description:'name', item_description:'name', item_name:'name',

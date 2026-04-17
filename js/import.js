@@ -22,7 +22,11 @@ function parseFile(file, callback) {
 function normaliseRow(raw, aliases) {
   const out = {};
   for (const [k, v] of Object.entries(raw)) {
-    const key = k.trim().toLowerCase().replace(/\s+/g, '_');
+    const key = k.trim()
+      .normalize('NFD').replace(/[\u0300-\u036f]/g, '')  // strip accents (é→e, è→e, etc.)
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '_')   // dots, slashes, $, spaces → underscore
+      .replace(/^_|_$/g, '');        // trim leading/trailing underscores
     out[aliases[key] || key] = typeof v === 'string' ? v.trim() : v;
   }
   return out;
@@ -195,15 +199,17 @@ function renderImport() {
       <div class="card-body">
         <div class="row"><div class="col-md-6">
           <table class="table table-sm table-bordered small mb-0"><thead class="table-light"><tr><th>Column</th><th>Also recognised as</th></tr></thead><tbody>
-            <tr><td><code>ndc</code></td><td>drug_code, drug_ndc, national_drug_code</td></tr>
-            <tr><td><code>name</code></td><td>drug_name, product_name, medication, description</td></tr>
-            <tr><td><code>quantity</code></td><td>on_hand, qty_on_hand, qty, stock (for snapshot)<br>qty_dispensed, total_dispensed (for dispensing)</td></tr>
+            <tr><td><code>ndc</code> / DIN</td><td>DIN, GTIN, drug_code, drug_ndc, national_drug_code</td></tr>
+            <tr><td><code>name</code></td><td>Produit, drug_name, product_name, medication, description</td></tr>
+            <tr><td><code>quantity</code> (stock)</td><td>Qté en stock, on_hand, qty_on_hand, qty, stock</td></tr>
+            <tr><td><code>quantity</code> (dispense)</td><td>Qté dispensée, qty_dispensed, total_dispensed</td></tr>
           </tbody></table>
         </div><div class="col-md-6 mt-3 mt-md-0">
           <table class="table table-sm table-bordered small mb-0"><thead class="table-light"><tr><th>Column</th><th>Also recognised as</th></tr></thead><tbody>
-            <tr><td><code>date</code></td><td>dispense_date, fill_date, transaction_date, rx_date</td></tr>
+            <tr><td><code>date</code></td><td>date_service, date_dispense, dispense_date, fill_date, rx_date</td></tr>
             <tr><td><code>category</code></td><td>drug_category, drug_class</td></tr>
             <tr><td><code>unit</code></td><td>uom, unit_of_measure</td></tr>
+            <tr><td><code>generic_name</code></td><td>Nom générique, nom_generique</td></tr>
           </tbody></table>
         </div></div>
       </div>

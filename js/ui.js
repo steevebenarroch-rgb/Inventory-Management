@@ -101,7 +101,7 @@ function renderDashboard() {
       ['RETURN_OR_DISPOSE','DISCONTINUE'].includes(r.action)?'row-dispose':
       r.action==='REDUCE_ORDERS'?'row-reduce':r.action==='ORDER_SOON'?'row-order-soon':'';
     return `<tr class="${rowCls}">
-      <td><div class="fw-semibold small">${r.product.name}</div>${r.product.ndc?`<div class="text-muted" style="font-size:.72rem">${r.product.ndc}</div>`:''}</td>
+      <td><div class="fw-semibold small">${r.product.name}</div>${r.product.ndc?`<div class="text-muted" style="font-size:.72rem">DIN/NDC: ${r.product.ndc}</div>`:''}</td>
       <td>${classBadge(r.movementClass)}</td>
       <td class="text-center small">${r.emsStock}${r.uncredited>0?`<div class="text-danger" style="font-size:.7rem">−${r.uncredited} uncredited</div>`:''}</td>
       <td class="text-center fw-bold small">${r.adjustedStock}</td>
@@ -185,7 +185,7 @@ function buildAnalysisRows(results) {
       ['RETURN_OR_DISPOSE','DISCONTINUE'].includes(r.action)?'row-dispose':
       r.action==='REDUCE_ORDERS'?'row-reduce':r.action==='ORDER_SOON'?'row-order-soon':'';
     return `<tr class="${rowCls}">
-      <td><div class="fw-semibold small">${r.product.name}</div>${r.product.ndc?`<div class="text-muted" style="font-size:.72rem">${r.product.ndc}</div>`:''}</td>
+      <td><div class="fw-semibold small">${r.product.name}</div>${r.product.ndc?`<div class="text-muted" style="font-size:.72rem">DIN/NDC: ${r.product.ndc}</div>`:''}</td>
       <td class="small text-muted">${r.product.category||'—'}</td>
       <td class="text-center small">${r.emsStock}</td>
       <td class="text-center small ${r.uncredited>0?'text-danger fw-semibold':''}">${r.uncredited||'—'}</td>
