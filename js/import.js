@@ -202,7 +202,7 @@ function renderImport() {
             <tr><td><code>ndc</code> / DIN</td><td>DIN, GTIN, drug_code, drug_ndc, national_drug_code</td></tr>
             <tr><td><code>name</code></td><td>Produit, drug_name, product_name, medication, description</td></tr>
             <tr><td><code>quantity</code> (stock)</td><td>Qté en stock, on_hand, qty_on_hand, qty, stock</td></tr>
-            <tr><td><code>quantity</code> (dispense)</td><td>Qté dispensée, qty_dispensed, total_dispensed</td></tr>
+            <tr><td><code>quantity</code> (dispense)</td><td>Qté servie, Qté dispensée, qty_dispensed, total_dispensed</td></tr>
           </tbody></table>
         </div><div class="col-md-6 mt-3 mt-md-0">
           <table class="table table-sm table-bordered small mb-0"><thead class="table-light"><tr><th>Column</th><th>Also recognised as</th></tr></thead><tbody>

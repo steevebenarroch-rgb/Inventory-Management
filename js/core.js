@@ -19,7 +19,7 @@ const STOCK_ALIASES = {
   prix_du_format:'unit_cost',
   emballage:'package',
   fabric:'manufacturer', fabricant:'manufacturer',
-  fourn:'supplier', fournisseur:'supplier',
+  fourn:'supplier', fournisseur:'supplier', format:'package',
   config_min_max:'min_max_config',
   total:'total_value',
   // US / generic aliases
@@ -33,11 +33,16 @@ const STOCK_ALIASES = {
 };
 
 const DISPENSE_ALIASES = {
-  // Canadian EMS (French)
+  // Canadian EMS (French) — dispensing history report
   din:'ndc', gtin:'ndc',
   produit:'name', nom_generique:'generic_name',
+  qte_servie:'quantity',           // "Qté servie" — units dispensed (summary report)
   qte_dispensee:'quantity', quantite_dispensee:'quantity',
   qte:'quantity', quantite:'quantity',
+  fabricant:'manufacturer', fournisseur:'supplier',
+  format:'package',
+  cout_d_acquisition:'unit_cost',  // "Coût d'acquisition"
+  cout_total:'total_cost',
   date_service:'date', date_dispense:'date', date_ordonnance:'date',
   // US / generic aliases
   drug_code:'ndc', drug_ndc:'ndc', national_drug_code:'ndc',
