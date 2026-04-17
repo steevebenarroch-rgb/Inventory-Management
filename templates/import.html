@@ -1,97 +1,129 @@
 {% extends "base.html" %}
-{% block title %}Import from EMS — PharmaCare{% endblock %}
+{% block title %}Import from EMS — PharmIntel{% endblock %}
 {% block content %}
 
 <div class="mb-4">
   <h2 class="fw-bold mb-0"><i class="bi bi-cloud-upload me-2 text-primary"></i>Import from EMS</h2>
-  <p class="text-muted mt-1">Upload reports exported from your EMS (CSV or Excel) to update inventory automatically.</p>
+  <p class="text-muted mt-1">Upload CSV or Excel exports from your EMS. Two imports are needed for full analysis.</p>
 </div>
 
 <div class="row g-4">
-  <!-- Upload Form -->
+  <!-- Stock Snapshot -->
   <div class="col-lg-6">
-    <div class="card border-0 shadow-sm">
+    <div class="card border-0 shadow-sm h-100">
       <div class="card-header bg-white border-0 pt-3">
-        <h6 class="fw-bold mb-0"><i class="bi bi-upload me-2 text-info"></i>Upload EMS Report</h6>
+        <h6 class="fw-bold mb-0">
+          <i class="bi bi-box-seam me-2 text-success"></i>1. Current Stock Snapshot
+        </h6>
+        <small class="text-muted">Export your current on-hand quantities from your EMS.</small>
       </div>
       <div class="card-body">
         <form method="post" enctype="multipart/form-data">
+          <input type="hidden" name="import_type" value="stock_snapshot">
           <div class="mb-3">
-            <label class="form-label fw-semibold">Report Type <span class="text-danger">*</span></label>
-            <select name="import_type" class="form-select" id="importType" required>
-              <option value="">— Select type —</option>
-              <option value="dispensed">Dispensed (medications given to patients)</option>
-              <option value="received">Received (new stock received)</option>
-              <option value="adjustment">Adjustment (inventory correction)</option>
-            </select>
-            <div class="form-text" id="importHint"></div>
+            <label class="form-label small fw-semibold">File (CSV or Excel) <span class="text-danger">*</span></label>
+            <input type="file" name="file" class="form-control form-control-sm" accept=".csv,.xlsx,.xls" required>
           </div>
-
           <div class="mb-3">
-            <label class="form-label fw-semibold">File <span class="text-danger">*</span></label>
-            <input type="file" name="file" class="form-control" accept=".csv,.xlsx,.xls" required>
-            <div class="form-text">Accepted formats: CSV, Excel (.xlsx, .xls). Max 16 MB.</div>
+            <label class="form-label small fw-semibold">Snapshot Date</label>
+            <input type="date" name="snapshot_date" class="form-control form-control-sm" id="snapDate">
+            <div class="form-text">Defaults to today if left blank.</div>
           </div>
-
-          <button type="submit" class="btn btn-primary w-100">
-            <i class="bi bi-cloud-upload me-2"></i>Import
+          <button type="submit" class="btn btn-success btn-sm w-100">
+            <i class="bi bi-upload me-1"></i>Upload Stock Snapshot
           </button>
         </form>
+        <hr class="my-3">
+        <div class="small text-muted">
+          <strong>Required columns:</strong> <code>quantity</code> (or: on_hand, qty, stock) + one of <code>ndc</code> or <code>name</code><br>
+          <strong>Optional:</strong> category, unit
+        </div>
+        <a href="{{ url_for('download_template', template_type='stock_snapshot') }}" class="btn btn-outline-secondary btn-sm mt-2">
+          <i class="bi bi-download me-1"></i>Download Template
+        </a>
       </div>
     </div>
+  </div>
 
-    <!-- Template Downloads -->
-    <div class="card border-0 shadow-sm mt-3">
+  <!-- Dispensing History -->
+  <div class="col-lg-6">
+    <div class="card border-0 shadow-sm h-100">
       <div class="card-header bg-white border-0 pt-3">
-        <h6 class="fw-bold mb-0"><i class="bi bi-file-earmark-spreadsheet me-2 text-success"></i>Download Templates</h6>
+        <h6 class="fw-bold mb-0">
+          <i class="bi bi-calendar-range me-2 text-info"></i>2. Dispensing History
+        </h6>
+        <small class="text-muted">Export dispensing records for the last 90 days (or available period).</small>
       </div>
       <div class="card-body">
-        <p class="text-muted small mb-3">
-          If your EMS export doesn't match automatically, use these templates to format your data before importing.
-          The key column is <strong>ndc</strong> (or drug name) to match products.
-        </p>
-        <div class="d-grid gap-2">
-          <a href="{{ url_for('download_template', import_type='dispensed') }}" class="btn btn-outline-primary btn-sm">
-            <i class="bi bi-download me-2"></i>Dispensed Report Template
+        <form method="post" enctype="multipart/form-data">
+          <input type="hidden" name="import_type" value="dispensing_history">
+          <div class="mb-3">
+            <label class="form-label small fw-semibold">File (CSV or Excel) <span class="text-danger">*</span></label>
+            <input type="file" name="file" class="form-control form-control-sm" accept=".csv,.xlsx,.xls" required>
+          </div>
+          <div class="row">
+            <div class="col-6 mb-3">
+              <label class="form-label small fw-semibold">Period Start <span class="text-danger">*</span></label>
+              <input type="date" name="period_start" class="form-control form-control-sm" required>
+            </div>
+            <div class="col-6 mb-3">
+              <label class="form-label small fw-semibold">Period End <span class="text-danger">*</span></label>
+              <input type="date" name="period_end" class="form-control form-control-sm" id="periodEnd" required>
+            </div>
+          </div>
+          <div class="alert alert-info small py-2 mb-3">
+            <i class="bi bi-lightbulb me-1"></i>
+            <strong>Date column?</strong> If your file has a date column per row (daily detail), the app uses those dates.
+            If it's a summary (one row per product, no date), the period end date is used.
+          </div>
+          <button type="submit" class="btn btn-info btn-sm w-100 text-white">
+            <i class="bi bi-upload me-1"></i>Upload Dispensing History
+          </button>
+        </form>
+        <hr class="my-3">
+        <div class="small text-muted">
+          <strong>Required:</strong> <code>quantity</code> + <code>ndc</code> or <code>name</code><br>
+          <strong>Optional:</strong> <code>date</code> (dispense_date, fill_date, transaction_date)
+        </div>
+        <div class="d-flex gap-2 mt-2">
+          <a href="{{ url_for('download_template', template_type='dispensing_history_summary') }}" class="btn btn-outline-secondary btn-sm">
+            <i class="bi bi-download me-1"></i>Summary Template
           </a>
-          <a href="{{ url_for('download_template', import_type='received') }}" class="btn btn-outline-success btn-sm">
-            <i class="bi bi-download me-2"></i>Received Inventory Template
-          </a>
-          <a href="{{ url_for('download_template', import_type='adjustment') }}" class="btn btn-outline-secondary btn-sm">
-            <i class="bi bi-download me-2"></i>Adjustment Template
+          <a href="{{ url_for('download_template', template_type='dispensing_history_daily') }}" class="btn btn-outline-secondary btn-sm">
+            <i class="bi bi-download me-1"></i>Daily Template
           </a>
         </div>
       </div>
     </div>
   </div>
+</div>
 
-  <!-- Column Mapping Guide -->
-  <div class="col-lg-6">
-    <div class="card border-0 shadow-sm">
-      <div class="card-header bg-white border-0 pt-3">
-        <h6 class="fw-bold mb-0"><i class="bi bi-info-circle me-2 text-info"></i>Column Guide</h6>
+<!-- Column Aliases Reference -->
+<div class="card border-0 shadow-sm mt-4">
+  <div class="card-header bg-white border-0 pt-3">
+    <h6 class="fw-bold mb-0"><i class="bi bi-info-circle me-2 text-secondary"></i>Supported Column Name Aliases</h6>
+  </div>
+  <div class="card-body">
+    <div class="row">
+      <div class="col-md-6">
+        <table class="table table-sm table-bordered small mb-0">
+          <thead class="table-light"><tr><th>Standard Column</th><th>Also Recognised As</th></tr></thead>
+          <tbody>
+            <tr><td><code>ndc</code></td><td>drug_code, drug_ndc, national_drug_code</td></tr>
+            <tr><td><code>name</code></td><td>drug_name, product_name, medication, description, item_description</td></tr>
+            <tr><td><code>quantity</code> (stock)</td><td>on_hand, on_hand_qty, qty_on_hand, qty, stock, current_stock</td></tr>
+          </tbody>
+        </table>
       </div>
-      <div class="card-body">
-        <p class="text-muted small">The importer auto-detects common column names from popular EMS systems. Supported aliases:</p>
-        <div class="table-responsive">
-          <table class="table table-sm table-bordered">
-            <thead class="table-light">
-              <tr><th>Expected Column</th><th>Also Accepted As</th></tr>
-            </thead>
-            <tbody class="small">
-              <tr><td><code>ndc</code></td><td>drug_code, national_drug_code, drug ndc</td></tr>
-              <tr><td><code>quantity</code></td><td>qty, qty_dispensed, qty_received</td></tr>
-              <tr><td><code>lot_number</code></td><td>lot, lot #, lot#</td></tr>
-              <tr><td><code>expiry_date</code></td><td>exp_date, expiration, expiration_date, exp</td></tr>
-              <tr><td><code>adjustment_type</code></td><td>type</td></tr>
-            </tbody>
-          </table>
-        </div>
-        <div class="alert alert-info small mb-0">
-          <i class="bi bi-lightbulb me-1"></i>
-          <strong>Tip:</strong> If your product isn't matched by NDC, the importer will also try to match
-          by product name. Make sure product names in your EMS match those in PharmaCare.
-        </div>
+      <div class="col-md-6">
+        <table class="table table-sm table-bordered small mb-0">
+          <thead class="table-light"><tr><th>Standard Column</th><th>Also Recognised As</th></tr></thead>
+          <tbody>
+            <tr><td><code>quantity</code> (dispensed)</td><td>qty_dispensed, dispensed_qty, total_dispensed, units_dispensed</td></tr>
+            <tr><td><code>date</code></td><td>dispense_date, fill_date, transaction_date, service_date, rx_date</td></tr>
+            <tr><td><code>category</code></td><td>drug_category, drug_class</td></tr>
+          </tbody>
+        </table>
       </div>
     </div>
   </div>
@@ -99,88 +131,94 @@
 
 <!-- Import History -->
 <div class="card border-0 shadow-sm mt-4">
-  <div class="card-header bg-white border-0 pt-3">
-    <h6 class="fw-bold mb-0"><i class="bi bi-clock-history me-2 text-secondary"></i>Recent Import History</h6>
+  <div class="card-header bg-white border-0 pt-3 d-flex justify-content-between">
+    <h6 class="fw-bold mb-0"><i class="bi bi-clock-history me-2 text-secondary"></i>Import History</h6>
   </div>
   <div class="card-body p-0">
     <div class="table-responsive">
-      <table class="table table-hover align-middle mb-0">
+      <table class="table table-hover align-middle mb-0 small">
         <thead class="table-light">
           <tr>
             <th>File</th>
             <th>Type</th>
-            <th class="text-center">Total</th>
-            <th class="text-center">Imported</th>
+            <th>Period / Date</th>
+            <th class="text-center">Records</th>
+            <th class="text-center">OK</th>
             <th class="text-center">Failed</th>
             <th>Status</th>
-            <th>Date</th>
-            <th>Errors</th>
+            <th>Imported At</th>
+            <th></th>
           </tr>
         </thead>
         <tbody>
-          {% for log in logs %}
+          {% for b in batches %}
           <tr>
-            <td class="small fw-semibold">{{ log.filename }}</td>
-            <td><span class="badge bg-secondary">{{ log.import_type }}</span></td>
-            <td class="text-center small">{{ log.records_total }}</td>
-            <td class="text-center small text-success fw-bold">{{ log.records_imported }}</td>
-            <td class="text-center small text-danger">{{ log.records_failed }}</td>
+            <td class="fw-semibold">{{ b.filename }}</td>
             <td>
-              {% if log.status == 'success' %}
-                <span class="badge bg-success">Success</span>
-              {% elif log.status == 'partial' %}
-                <span class="badge bg-warning text-dark">Partial</span>
-              {% elif log.status == 'failed' %}
-                <span class="badge bg-danger">Failed</span>
+              {% if b.import_type == 'stock_snapshot' %}
+                <span class="badge bg-success-subtle text-success border border-success-subtle">Stock Snapshot</span>
               {% else %}
-                <span class="badge bg-secondary">{{ log.status }}</span>
+                <span class="badge bg-info-subtle text-info border border-info-subtle">Dispensing History</span>
               {% endif %}
             </td>
-            <td class="small text-muted">{{ log.imported_at.strftime('%m/%d %H:%M') if log.imported_at else '' }}</td>
+            <td class="text-muted">
+              {% if b.import_type == 'stock_snapshot' and b.snapshot_date %}
+                {{ b.snapshot_date.strftime('%b %d, %Y') }}
+              {% elif b.period_start and b.period_end %}
+                {{ b.period_start.strftime('%b %d') }} – {{ b.period_end.strftime('%b %d, %Y') }}
+              {% else %}—{% endif %}
+            </td>
+            <td class="text-center">{{ b.records_total }}</td>
+            <td class="text-center text-success fw-bold">{{ b.records_ok }}</td>
+            <td class="text-center text-danger">{{ b.records_failed }}</td>
             <td>
-              {% if log.error_details %}
-              <button class="btn btn-sm btn-outline-danger py-0"
-                      data-bs-toggle="modal" data-bs-target="#errModal{{ log.id }}">
+              {% if b.status == 'success' %}<span class="badge bg-success">Success</span>
+              {% elif b.status == 'partial' %}<span class="badge bg-warning text-dark">Partial</span>
+              {% elif b.status == 'failed' %}<span class="badge bg-danger">Failed</span>
+              {% else %}<span class="badge bg-secondary">{{ b.status }}</span>{% endif %}
+            </td>
+            <td class="text-muted">{{ b.imported_at.strftime('%m/%d %H:%M') if b.imported_at else '' }}</td>
+            <td>
+              {% if b.error_details %}
+              <button class="btn btn-sm btn-outline-danger py-0 px-1 me-1" title="View errors"
+                      data-bs-toggle="modal" data-bs-target="#err{{ b.id }}">
                 <i class="bi bi-exclamation-circle"></i>
               </button>
-              <!-- Error Modal -->
-              <div class="modal fade" id="errModal{{ log.id }}" tabindex="-1">
+              <div class="modal fade" id="err{{ b.id }}" tabindex="-1">
                 <div class="modal-dialog modal-lg">
                   <div class="modal-content">
                     <div class="modal-header">
-                      <h6 class="modal-title">Import Errors — {{ log.filename }}</h6>
+                      <h6 class="modal-title">Import Errors — {{ b.filename }}</h6>
                       <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                     </div>
-                    <div class="modal-body">
-                      <pre class="small text-danger mb-0">{{ log.error_details }}</pre>
-                    </div>
+                    <div class="modal-body"><pre class="small text-danger mb-0">{{ b.error_details }}</pre></div>
                   </div>
                 </div>
               </div>
-              {% else %}—{% endif %}
+              {% endif %}
+              <form method="post" action="{{ url_for('delete_import', batch_id=b.id) }}"
+                    class="d-inline" onsubmit="return confirm('Delete this import and all its data?')">
+                <button class="btn btn-sm btn-outline-danger py-0 px-1" title="Delete import">
+                  <i class="bi bi-trash"></i>
+                </button>
+              </form>
             </td>
           </tr>
           {% else %}
-          <tr>
-            <td colspan="8" class="text-center text-muted py-4">No imports yet.</td>
-          </tr>
+          <tr><td colspan="9" class="text-center text-muted py-4">No imports yet.</td></tr>
           {% endfor %}
         </tbody>
       </table>
     </div>
   </div>
 </div>
+
 {% endblock %}
 
 {% block scripts %}
 <script>
-  const hints = {
-    dispensed: 'Required columns: ndc, quantity — Stock will be reduced (FIFO).',
-    received: 'Required columns: ndc, quantity — Optional: lot_number, expiry_date, location.',
-    adjustment: 'Required columns: ndc, quantity, adjustment_type (received/dispensed/adjusted).',
-  };
-  document.getElementById('importType').addEventListener('change', function() {
-    document.getElementById('importHint').textContent = hints[this.value] || '';
-  });
+  const today = new Date().toISOString().split('T')[0];
+  document.getElementById('snapDate').value = today;
+  document.getElementById('periodEnd').value = today;
 </script>
 {% endblock %}

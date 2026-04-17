@@ -1,29 +1,18 @@
-// PharmaCare Inventory — Client-side helpers
-
 document.addEventListener('DOMContentLoaded', () => {
-  // Auto-dismiss alerts after 5 seconds
-  document.querySelectorAll('.alert.alert-dismissible').forEach(alert => {
-    setTimeout(() => {
-      const bsAlert = bootstrap.Alert.getOrCreateInstance(alert);
-      bsAlert.close();
-    }, 5000);
+  // Auto-dismiss alerts after 6 seconds
+  document.querySelectorAll('.alert.alert-dismissible').forEach(el => {
+    setTimeout(() => bootstrap.Alert.getOrCreateInstance(el)?.close(), 6000);
   });
 
-  // Confirm delete dialogs are handled inline via onsubmit in templates
-
-  // Highlight table rows on search match (client-side instant feedback)
-  const searchInputs = document.querySelectorAll('input[name="search"]');
-  searchInputs.forEach(input => {
+  // Live client-side search on any table (filters visible rows instantly)
+  document.querySelectorAll('input[data-search-table]').forEach(input => {
+    const tableId = input.dataset.searchTable;
+    const tbody = document.querySelector(`#${tableId} tbody`);
+    if (!tbody) return;
     input.addEventListener('input', () => {
       const term = input.value.toLowerCase();
-      const rows = document.querySelectorAll('tbody tr');
-      rows.forEach(row => {
-        if (!term) {
-          row.style.display = '';
-          return;
-        }
-        const text = row.textContent.toLowerCase();
-        row.style.display = text.includes(term) ? '' : 'none';
+      Array.from(tbody.rows).forEach(row => {
+        row.style.display = row.textContent.toLowerCase().includes(term) ? '' : 'none';
       });
     });
   });

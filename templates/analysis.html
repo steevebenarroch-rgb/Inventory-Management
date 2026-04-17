@@ -1,0 +1,120 @@
+{% extends "base.html" %}
+{% block title %}Movement Analysis — PharmIntel{% endblock %}
+{% block content %}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <h2 class="fw-bold mb-0"><i class="bi bi-bar-chart-line me-2 text-primary"></i>Movement Analysis</h2>
+  <a href="{{ url_for('export_csv', export_type='all') }}" class="btn btn-sm btn-outline-secondary">
+    <i class="bi bi-download me-1"></i>Export CSV
+  </a>
+</div>
+
+<!-- Filters -->
+<div class="card border-0 shadow-sm mb-4">
+  <div class="card-body py-2">
+    <form method="get" class="d-flex flex-wrap gap-2 align-items-end">
+      <div>
+        <label class="form-label small fw-semibold mb-1">Movement Class</label>
+        <select name="class" class="form-select form-select-sm">
+          <option value="">All Classes</option>
+          {% for val, label in [('fast','Fast Mover'),('moderate','Moderate'),('slow','Slow Mover'),('non-mover','Non-Mover')] %}
+          <option value="{{ val }}" {% if filter_class == val %}selected{% endif %}>{{ label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div>
+        <label class="form-label small fw-semibold mb-1">Recommendation</label>
+        <select name="action" class="form-select form-select-sm">
+          <option value="">All Actions</option>
+          {% for val, label in [
+            ('ORDER_URGENT','Order Urgently'),('ORDER_SOON','Order Soon'),
+            ('MAINTAIN','Maintain'),('REDUCE_ORDERS','Reduce Orders'),
+            ('RETURN_OR_DISPOSE','Return / Dispose'),('DISCONTINUE','Discontinue')
+          ] %}
+          <option value="{{ val }}" {% if filter_action == val %}selected{% endif %}>{{ label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="align-self-end">
+        <button type="submit" class="btn btn-outline-primary btn-sm">Filter</button>
+        <a href="{{ url_for('analysis') }}" class="btn btn-outline-secondary btn-sm ms-1">Clear</a>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Table -->
+<div class="card border-0 shadow-sm">
+  <div class="card-body p-0">
+    <div class="table-responsive">
+      <table class="table table-hover align-middle mb-0 analysis-table">
+        <thead class="table-light">
+          <tr>
+            <th>Product</th>
+            <th>Category</th>
+            <th class="text-center">EMS<br>Stock</th>
+            <th class="text-center">Uncredited<br>Returns</th>
+            <th class="text-center">Adjusted<br>Stock</th>
+            <th class="text-center">Dispensed<br>({{ results[0].analysis_days if results else '—' }}d)</th>
+            <th class="text-center">Avg<br>/mo</th>
+            <th class="text-center">Days<br>Supply</th>
+            <th class="text-center">Target<br>Days</th>
+            <th>Class</th>
+            <th>Action</th>
+            <th>Detail</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for r in results %}
+          <tr class="
+            {% if r.action == 'ORDER_URGENT' %}row-urgent
+            {% elif r.action in ('RETURN_OR_DISPOSE','DISCONTINUE') %}row-dispose
+            {% elif r.action == 'REDUCE_ORDERS' %}row-reduce
+            {% elif r.action == 'ORDER_SOON' %}row-order-soon
+            {% endif %}
+          ">
+            <td>
+              <div class="fw-semibold small">{{ r.product.name }}</div>
+              {% if r.product.ndc %}<div class="text-muted" style="font-size:.72rem;">{{ r.product.ndc }}</div>{% endif %}
+            </td>
+            <td class="small text-muted">{{ r.product.category or '—' }}</td>
+            <td class="text-center small">{{ r.ems_stock }}</td>
+            <td class="text-center small {% if r.uncredited_returns > 0 %}text-danger fw-semibold{% else %}text-muted{% endif %}">
+              {{ r.uncredited_returns if r.uncredited_returns > 0 else '—' }}
+            </td>
+            <td class="text-center fw-bold small">{{ r.adjusted_stock }}</td>
+            <td class="text-center small">{{ r.total_dispensed }}</td>
+            <td class="text-center small">{{ r.avg_monthly }}</td>
+            <td class="text-center small fw-bold">
+              {% if r.days_of_supply is none %}
+                <span class="text-danger">∞</span>
+              {% elif r.days_of_supply < 14 %}
+                <span class="text-danger">{{ r.days_of_supply | int }}d</span>
+              {% elif r.target_days and r.days_of_supply > r.target_days * 1.5 %}
+                <span class="text-warning">{{ r.days_of_supply | int }}d</span>
+              {% else %}
+                {{ r.days_of_supply | int }}d
+              {% endif %}
+            </td>
+            <td class="text-center small text-muted">{{ r.target_days if r.target_days else '—' }}</td>
+            <td>{% include '_class_badge.html' %}</td>
+            <td>{% include '_action_badge.html' %}</td>
+            <td class="small text-muted detail-cell">{{ r.detail }}</td>
+          </tr>
+          {% else %}
+          <tr>
+            <td colspan="12" class="text-center text-muted py-5">
+              <i class="bi bi-inbox fs-2"></i>
+              <p class="mt-2 mb-0">No results. <a href="{{ url_for('import_data') }}">Import EMS data</a> to begin.</p>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% if results %}
+    <div class="px-3 py-2 border-top text-muted small">{{ results|length }} product(s) shown</div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

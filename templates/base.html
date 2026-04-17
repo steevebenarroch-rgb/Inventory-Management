@@ -3,30 +3,51 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>{% block title %}PharmaCare Inventory{% endblock %}</title>
+  <title>{% block title %}PharmIntel{% endblock %}</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" />
   <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet" />
   <link href="{{ url_for('static', filename='css/style.css') }}" rel="stylesheet" />
 </head>
 <body>
 
-<!-- Sidebar -->
 <div class="d-flex">
-  <nav id="sidebar" class="d-flex flex-column flex-shrink-0 p-3 bg-dark text-white" style="width:240px;min-height:100vh;">
-    <a href="{{ url_for('dashboard') }}" class="d-flex align-items-center mb-3 mb-md-0 me-md-auto text-white text-decoration-none">
-      <i class="bi bi-capsule-pill fs-4 me-2 text-info"></i>
-      <span class="fs-5 fw-bold">PharmaCare</span>
+  <!-- Sidebar -->
+  <nav id="sidebar" class="d-flex flex-column flex-shrink-0 p-3 bg-dark text-white">
+    <a href="{{ url_for('dashboard') }}" class="d-flex align-items-center mb-3 text-white text-decoration-none">
+      <i class="bi bi-graph-up-arrow fs-4 me-2 text-info"></i>
+      <span class="fs-5 fw-bold">PharmIntel</span>
     </a>
     <hr />
-    <ul class="nav nav-pills flex-column mb-auto">
-      <li class="nav-item">
+    <ul class="nav nav-pills flex-column mb-auto gap-1">
+      <li>
         <a href="{{ url_for('dashboard') }}" class="nav-link text-white {% if request.endpoint == 'dashboard' %}active{% endif %}">
           <i class="bi bi-speedometer2 me-2"></i>Dashboard
         </a>
       </li>
       <li>
-        <a href="{{ url_for('inventory') }}" class="nav-link text-white {% if request.endpoint in ('inventory','inventory_adjust') %}active{% endif %}">
-          <i class="bi bi-boxes me-2"></i>Inventory
+        <a href="{{ url_for('analysis') }}" class="nav-link text-white {% if request.endpoint == 'analysis' %}active{% endif %}">
+          <i class="bi bi-bar-chart-line me-2"></i>Movement Analysis
+        </a>
+      </li>
+      <li>
+        <a href="{{ url_for('overstock') }}" class="nav-link text-white {% if request.endpoint == 'overstock' %}active{% endif %}">
+          <i class="bi bi-box-arrow-left me-2"></i>Dead Stock &amp; Overstock
+        </a>
+      </li>
+      <li>
+        <a href="{{ url_for('reorder') }}" class="nav-link text-white {% if request.endpoint == 'reorder' %}active{% endif %}">
+          <i class="bi bi-cart-plus me-2"></i>Reorder Suggestions
+        </a>
+      </li>
+      <li>
+        <a href="{{ url_for('returns_log') }}" class="nav-link text-white {% if request.endpoint == 'returns_log' %}active{% endif %}">
+          <i class="bi bi-arrow-counterclockwise me-2"></i>Expired / Returns
+        </a>
+      </li>
+      <hr class="my-1 border-secondary"/>
+      <li>
+        <a href="{{ url_for('import_data') }}" class="nav-link text-white {% if request.endpoint == 'import_data' %}active{% endif %}">
+          <i class="bi bi-cloud-upload me-2"></i>Import from EMS
         </a>
       </li>
       <li>
@@ -35,37 +56,53 @@
         </a>
       </li>
       <li>
-        <a href="{{ url_for('import_data') }}" class="nav-link text-white {% if request.endpoint == 'import_data' %}active{% endif %}">
-          <i class="bi bi-cloud-upload me-2"></i>Import from EMS
-        </a>
-      </li>
-      <li>
-        <a href="{{ url_for('transactions') }}" class="nav-link text-white {% if request.endpoint == 'transactions' %}active{% endif %}">
-          <i class="bi bi-arrow-left-right me-2"></i>Transactions
-        </a>
-      </li>
-      <li>
-        <a href="{{ url_for('reports') }}" class="nav-link text-white {% if request.endpoint == 'reports' %}active{% endif %}">
-          <i class="bi bi-file-earmark-bar-graph me-2"></i>Reports
-        </a>
-      </li>
-      <li>
-        <a href="{{ url_for('suppliers') }}" class="nav-link text-white {% if 'supplier' in (request.endpoint or '') %}active{% endif %}">
-          <i class="bi bi-truck me-2"></i>Suppliers
+        <a href="{{ url_for('settings') }}" class="nav-link text-white {% if request.endpoint == 'settings' %}active{% endif %}">
+          <i class="bi bi-sliders me-2"></i>Settings
         </a>
       </li>
     </ul>
     <hr />
-    <small class="text-muted">PharmaCare v1.0</small>
+    <small class="text-muted">PharmIntel v1.0</small>
   </nav>
 
-  <!-- Main content -->
-  <div class="flex-grow-1 p-4 bg-light" style="min-height:100vh;">
+  <!-- Main -->
+  <div class="flex-grow-1 p-4 main-content">
+
+    <!-- Data freshness banner -->
+    {% if status is defined and status %}
+      <div class="data-banner mb-3 d-flex flex-wrap gap-3 align-items-center">
+        <span class="small text-muted"><i class="bi bi-database me-1"></i>Data status:</span>
+        {% if status.snapshot_date %}
+          <span class="badge bg-success-subtle text-success border border-success-subtle">
+            <i class="bi bi-box-seam me-1"></i>Stock snapshot: {{ status.snapshot_date.strftime('%b %d, %Y') }}
+          </span>
+        {% else %}
+          <span class="badge bg-warning-subtle text-warning border border-warning-subtle">
+            <i class="bi bi-exclamation-triangle me-1"></i>No stock snapshot loaded
+          </span>
+        {% endif %}
+        {% if status.dispense_from %}
+          <span class="badge bg-info-subtle text-info border border-info-subtle">
+            <i class="bi bi-calendar-range me-1"></i>Dispensing: {{ status.dispense_from.strftime('%b %d') }} – {{ status.dispense_to.strftime('%b %d, %Y') }} ({{ status.dispense_days }}d)
+          </span>
+        {% else %}
+          <span class="badge bg-warning-subtle text-warning border border-warning-subtle">
+            <i class="bi bi-exclamation-triangle me-1"></i>No dispensing data loaded
+          </span>
+        {% endif %}
+        {% if not status.has_stock_data or not status.has_dispense_data %}
+          <a href="{{ url_for('import_data') }}" class="btn btn-sm btn-warning py-0 ms-auto">
+            <i class="bi bi-cloud-upload me-1"></i>Import EMS data
+          </a>
+        {% endif %}
+      </div>
+    {% endif %}
+
     {% with messages = get_flashed_messages(with_categories=true) %}
       {% if messages %}
         <div class="mb-3">
           {% for category, message in messages %}
-            <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+            <div class="alert alert-{{ category }} alert-dismissible fade show py-2" role="alert">
               {{ message }}
               <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
             </div>

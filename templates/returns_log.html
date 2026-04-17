@@ -1,0 +1,158 @@
+{% extends "base.html" %}
+{% block title %}Expired / Returns Log — PharmIntel{% endblock %}
+{% block content %}
+
+<div class="d-flex justify-content-between align-items-center mb-2">
+  <h2 class="fw-bold mb-0"><i class="bi bi-arrow-counterclockwise me-2 text-primary"></i>Expired &amp; Returned Stock Log</h2>
+</div>
+<p class="text-muted mb-4">
+  Log medications that have been <strong>destroyed (expired)</strong> or <strong>returned to supplier for credit</strong>
+  but whose quantity hasn't yet been deducted in your EMS.
+  PharmIntel subtracts these from your EMS stock to show you a more accurate adjusted stock number.
+</p>
+
+<div class="row g-4">
+  <!-- Log Entry Form -->
+  <div class="col-lg-4">
+    <div class="card border-0 shadow-sm">
+      <div class="card-header bg-white border-0 pt-3">
+        <h6 class="fw-bold mb-0"><i class="bi bi-plus-circle me-2 text-success"></i>Log an Entry</h6>
+      </div>
+      <div class="card-body">
+        <form method="post">
+          <div class="mb-3">
+            <label class="form-label small fw-semibold">Product <span class="text-danger">*</span></label>
+            <select name="product_id" class="form-select form-select-sm" required>
+              <option value="">— Select —</option>
+              {% for p in products %}
+              <option value="{{ p.id }}">{{ p.name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="mb-3">
+            <label class="form-label small fw-semibold">Event Type <span class="text-danger">*</span></label>
+            <select name="event_type" class="form-select form-select-sm" required>
+              <option value="expired_destroyed">Expired &amp; Destroyed</option>
+              <option value="returned_credit">Returned to Supplier for Credit</option>
+            </select>
+          </div>
+          <div class="row">
+            <div class="col-6 mb-3">
+              <label class="form-label small fw-semibold">Quantity <span class="text-danger">*</span></label>
+              <input type="number" name="quantity" class="form-control form-control-sm" min="1" required>
+            </div>
+            <div class="col-6 mb-3">
+              <label class="form-label small fw-semibold">Date <span class="text-danger">*</span></label>
+              <input type="date" name="event_date" class="form-control form-control-sm"
+                     value="{{ today }}" required>
+            </div>
+          </div>
+          <div class="mb-3">
+            <label class="form-label small fw-semibold">Lot #</label>
+            <input type="text" name="lot_number" class="form-control form-control-sm" placeholder="Optional">
+          </div>
+          <div class="mb-3">
+            <label class="form-label small fw-semibold">Notes</label>
+            <textarea name="notes" class="form-control form-control-sm" rows="2" placeholder="Optional"></textarea>
+          </div>
+          <button type="submit" class="btn btn-primary btn-sm w-100">
+            <i class="bi bi-plus-circle me-1"></i>Log Entry
+          </button>
+        </form>
+      </div>
+    </div>
+
+    <div class="alert alert-info small mt-3">
+      <i class="bi bi-info-circle me-1"></i>
+      <strong>When to mark as "credited in EMS":</strong><br>
+      Once your EMS has processed the return credit and the on-hand quantity is updated,
+      click "Mark Credited" so PharmIntel stops double-deducting.
+    </div>
+  </div>
+
+  <!-- Log Table -->
+  <div class="col-lg-8">
+    <div class="card border-0 shadow-sm">
+      <div class="card-header bg-white border-0 pt-3 d-flex justify-content-between">
+        <h6 class="fw-bold mb-0">Log History</h6>
+        <span class="badge bg-secondary">{{ entries|length }} entries</span>
+      </div>
+      <div class="card-body p-0">
+        <div class="table-responsive">
+          <table class="table table-hover align-middle mb-0">
+            <thead class="table-light">
+              <tr>
+                <th>Product</th>
+                <th>Type</th>
+                <th class="text-center">Qty</th>
+                <th>Lot</th>
+                <th>Date</th>
+                <th>EMS Status</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for e in entries %}
+              <tr class="{{ 'table-secondary' if e.credited_in_ems else '' }}">
+                <td class="small fw-semibold">{{ e.product.name if e.product else 'Unknown' }}</td>
+                <td>
+                  {% if e.event_type == 'expired_destroyed' %}
+                    <span class="badge bg-danger">Expired</span>
+                  {% else %}
+                    <span class="badge bg-warning text-dark">Returned</span>
+                  {% endif %}
+                </td>
+                <td class="text-center fw-bold">{{ e.quantity }}</td>
+                <td class="small text-muted">{{ e.lot_number or '—' }}</td>
+                <td class="small text-muted">{{ e.event_date.strftime('%m/%d/%Y') }}</td>
+                <td>
+                  {% if e.credited_in_ems %}
+                    <span class="badge bg-success-subtle text-success border border-success-subtle">
+                      <i class="bi bi-check me-1"></i>Credited
+                    </span>
+                  {% else %}
+                    <span class="badge bg-danger-subtle text-danger border border-danger-subtle">
+                      <i class="bi bi-x me-1"></i>Not credited
+                    </span>
+                  {% endif %}
+                </td>
+                <td>
+                  {% if not e.credited_in_ems %}
+                  <form method="post" action="{{ url_for('mark_credited', entry_id=e.id) }}" class="d-inline">
+                    <button class="btn btn-sm btn-outline-success py-0 px-1" title="Mark as credited in EMS">
+                      <i class="bi bi-check-circle"></i>
+                    </button>
+                  </form>
+                  {% endif %}
+                  <form method="post" action="{{ url_for('delete_return', entry_id=e.id) }}" class="d-inline"
+                        onsubmit="return confirm('Delete this entry?')">
+                    <button class="btn btn-sm btn-outline-danger py-0 px-1" title="Delete">
+                      <i class="bi bi-trash"></i>
+                    </button>
+                  </form>
+                </td>
+              </tr>
+              {% else %}
+              <tr>
+                <td colspan="7" class="text-center text-muted py-4">No entries yet. Log expired or returned stock above.</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+  // Default date to today
+  const dateInput = document.querySelector('input[name="event_date"]');
+  if (dateInput && !dateInput.value) {
+    dateInput.value = new Date().toISOString().split('T')[0];
+  }
+</script>
+{% endblock %}

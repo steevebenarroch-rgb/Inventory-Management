@@ -1,0 +1,9 @@
+{% if r.movement_class == 'fast' %}
+  <span class="badge bg-primary">Fast</span>
+{% elif r.movement_class == 'moderate' %}
+  <span class="badge bg-info text-dark">Moderate</span>
+{% elif r.movement_class == 'slow' %}
+  <span class="badge bg-secondary">Slow</span>
+{% else %}
+  <span class="badge bg-danger">Non-Mover</span>
+{% endif %}

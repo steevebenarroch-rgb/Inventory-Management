@@ -1,0 +1,13 @@
+{% if r.action == 'ORDER_URGENT' %}
+  <span class="badge bg-danger">Order Urgently</span>
+{% elif r.action == 'ORDER_SOON' %}
+  <span class="badge bg-primary">Order Soon</span>
+{% elif r.action == 'MAINTAIN' %}
+  <span class="badge bg-success">Maintain</span>
+{% elif r.action == 'REDUCE_ORDERS' %}
+  <span class="badge bg-warning text-dark">Reduce Orders</span>
+{% elif r.action == 'RETURN_OR_DISPOSE' %}
+  <span class="badge bg-danger">Return / Dispose</span>
+{% elif r.action == 'DISCONTINUE' %}
+  <span class="badge bg-dark">Discontinue</span>
+{% endif %}

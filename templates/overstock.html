@@ -1,0 +1,179 @@
+{% extends "base.html" %}
+{% block title %}Dead Stock & Overstock — PharmIntel{% endblock %}
+{% block content %}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <div>
+    <h2 class="fw-bold mb-0"><i class="bi bi-box-arrow-left me-2 text-warning"></i>Dead Stock &amp; Overstock</h2>
+    <p class="text-muted small mt-1 mb-0">Items with too much stock, no movement, or ready for return/disposal.</p>
+  </div>
+  <a href="{{ url_for('export_csv', export_type='overstock') }}" class="btn btn-sm btn-outline-secondary">
+    <i class="bi bi-download me-1"></i>Export CSV
+  </a>
+</div>
+
+{% set dispose_items = items | selectattr('action', 'equalto', 'RETURN_OR_DISPOSE') | list %}
+{% set reduce_items  = items | selectattr('action', 'equalto', 'REDUCE_ORDERS') | list %}
+{% set disc_items    = items | selectattr('action', 'equalto', 'DISCONTINUE') | list %}
+
+<!-- Return / Dispose Section -->
+{% if dispose_items %}
+<div class="card border-0 shadow-sm border-start border-danger border-4 mb-4">
+  <div class="card-header bg-white border-0 pt-3">
+    <h6 class="fw-bold text-danger mb-0">
+      <i class="bi bi-arrow-90deg-left me-2"></i>Return to Supplier / Dispose
+      <span class="badge bg-danger ms-2">{{ dispose_items|length }}</span>
+    </h6>
+    <small class="text-muted">These items are severely overstocked or have had no movement. Consider returning to supplier for credit or flagging for disposal.</small>
+  </div>
+  <div class="card-body p-0">
+    <div class="table-responsive">
+      <table class="table table-hover align-middle mb-0">
+        <thead class="table-light">
+          <tr>
+            <th>Product</th>
+            <th class="text-center">Adjusted Stock</th>
+            <th class="text-center">Avg/mo</th>
+            <th class="text-center">Days Supply</th>
+            <th class="text-center">Last Moved</th>
+            <th>Recommendation</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for r in dispose_items %}
+          <tr>
+            <td>
+              <div class="fw-semibold small">{{ r.product.name }}</div>
+              <div class="text-muted" style="font-size:.72rem;">
+                {{ r.product.category or '' }}
+                {% if r.product.ndc %} · {{ r.product.ndc }}{% endif %}
+              </div>
+            </td>
+            <td class="text-center fw-bold">
+              {{ r.adjusted_stock }} {{ r.product.unit }}(s)
+              {% if r.uncredited_returns > 0 %}
+                <div class="text-danger" style="font-size:.7rem;">EMS shows {{ r.ems_stock }} (−{{ r.uncredited_returns }} uncredited)</div>
+              {% endif %}
+            </td>
+            <td class="text-center small">{{ r.avg_monthly }}</td>
+            <td class="text-center">
+              {% if r.days_of_supply is none %}
+                <span class="badge bg-danger">∞</span>
+              {% else %}
+                <span class="badge bg-danger">{{ r.days_of_supply | int }}d</span>
+              {% endif %}
+            </td>
+            <td class="text-center small text-muted">
+              {{ r.days_since_last ~ 'd ago' if r.days_since_last else 'Never' }}
+            </td>
+            <td class="small">{{ r.detail }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endif %}
+
+<!-- Reduce Orders Section -->
+{% if reduce_items %}
+<div class="card border-0 shadow-sm border-start border-warning border-4 mb-4">
+  <div class="card-header bg-white border-0 pt-3">
+    <h6 class="fw-bold text-warning mb-0">
+      <i class="bi bi-arrow-down-circle me-2"></i>Reduce Next Orders
+      <span class="badge bg-warning text-dark ms-2">{{ reduce_items|length }}</span>
+    </h6>
+    <small class="text-muted">These items are overstocked relative to their dispensing rate. Skip or reduce upcoming orders.</small>
+  </div>
+  <div class="card-body p-0">
+    <div class="table-responsive">
+      <table class="table table-hover align-middle mb-0">
+        <thead class="table-light">
+          <tr>
+            <th>Product</th>
+            <th>Class</th>
+            <th class="text-center">Adjusted Stock</th>
+            <th class="text-center">Avg/mo</th>
+            <th class="text-center">Days Supply</th>
+            <th class="text-center">Target</th>
+            <th>Recommendation</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for r in reduce_items %}
+          <tr>
+            <td>
+              <div class="fw-semibold small">{{ r.product.name }}</div>
+              <div class="text-muted" style="font-size:.72rem;">{{ r.product.category or '' }}</div>
+            </td>
+            <td>{% include '_class_badge.html' %}</td>
+            <td class="text-center fw-bold">{{ r.adjusted_stock }} {{ r.product.unit }}(s)</td>
+            <td class="text-center small">{{ r.avg_monthly }}/mo</td>
+            <td class="text-center">
+              <span class="badge bg-warning text-dark">{{ r.days_of_supply | int if r.days_of_supply else '∞' }}d</span>
+            </td>
+            <td class="text-center small text-muted">{{ r.target_days }}d</td>
+            <td class="small">{{ r.detail }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endif %}
+
+<!-- Discontinue Section -->
+{% if disc_items %}
+<div class="card border-0 shadow-sm border-start border-secondary border-4 mb-4">
+  <div class="card-header bg-white border-0 pt-3">
+    <h6 class="fw-bold text-secondary mb-0">
+      <i class="bi bi-x-circle me-2"></i>Consider Removing from Formulary
+      <span class="badge bg-secondary ms-2">{{ disc_items|length }}</span>
+    </h6>
+    <small class="text-muted">No movement, no stock. These items may no longer be needed.</small>
+  </div>
+  <div class="card-body p-0">
+    <div class="table-responsive">
+      <table class="table table-hover align-middle mb-0">
+        <thead class="table-light">
+          <tr>
+            <th>Product</th>
+            <th class="text-center">Last Dispensed</th>
+            <th>Recommendation</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for r in disc_items %}
+          <tr>
+            <td>
+              <div class="fw-semibold small">{{ r.product.name }}</div>
+              <div class="text-muted" style="font-size:.72rem;">{{ r.product.category or '' }}</div>
+            </td>
+            <td class="text-center text-muted small">
+              {{ r.days_since_last ~ 'd ago' if r.days_since_last else 'Never in data' }}
+            </td>
+            <td class="small">{{ r.detail }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endif %}
+
+{% if not items %}
+<div class="card border-0 shadow-sm">
+  <div class="card-body text-center py-5 text-muted">
+    <i class="bi bi-check-circle fs-2 text-success"></i>
+    <p class="mt-2">No overstock or dead stock items detected. Good inventory health!</p>
+    {% if not status.has_dispense_data %}
+    <a href="{{ url_for('import_data') }}" class="btn btn-sm btn-outline-primary mt-2">Import EMS data to enable analysis</a>
+    {% endif %}
+  </div>
+</div>
+{% endif %}
+
+{% endblock %}

@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+{% block title %}Edit Product — PharmIntel{% endblock %}
+{% block content %}
+
+<div class="mb-4">
+  <a href="{{ url_for('products') }}" class="text-decoration-none text-muted small">
+    <i class="bi bi-arrow-left me-1"></i>Back to Products
+  </a>
+  <h2 class="fw-bold mt-1"><i class="bi bi-pencil me-2 text-primary"></i>Edit Product</h2>
+</div>
+
+<div class="row justify-content-center">
+  <div class="col-lg-6">
+    <div class="card border-0 shadow-sm">
+      <div class="card-body p-4">
+        <form method="post">
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Name <span class="text-danger">*</span></label>
+            <input type="text" name="name" class="form-control" required value="{{ product.name }}">
+          </div>
+          <div class="row">
+            <div class="col-md-6 mb-3">
+              <label class="form-label fw-semibold">NDC</label>
+              <input type="text" name="ndc" class="form-control" value="{{ product.ndc or '' }}">
+            </div>
+            <div class="col-md-6 mb-3">
+              <label class="form-label fw-semibold">Generic Name</label>
+              <input type="text" name="generic_name" class="form-control" value="{{ product.generic_name or '' }}">
+            </div>
+          </div>
+          <div class="row">
+            <div class="col-md-6 mb-3">
+              <label class="form-label fw-semibold">Category</label>
+              <input type="text" name="category" class="form-control" value="{{ product.category or '' }}">
+            </div>
+            <div class="col-md-6 mb-3">
+              <label class="form-label fw-semibold">Unit</label>
+              <select name="unit" class="form-select">
+                {% for u in ['tablet','capsule','vial','bottle','inhaler','patch','syringe','unit','softgel'] %}
+                <option value="{{ u }}" {% if product.unit == u %}selected{% endif %}>{{ u|title }}</option>
+                {% endfor %}
+              </select>
+            </div>
+          </div>
+          <div class="d-flex gap-2">
+            <button type="submit" class="btn btn-primary px-4">Save</button>
+            <a href="{{ url_for('products') }}" class="btn btn-outline-secondary">Cancel</a>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

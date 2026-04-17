@@ -1,0 +1,129 @@
+{% extends "base.html" %}
+{% block title %}Reorder Suggestions — PharmIntel{% endblock %}
+{% block content %}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <div>
+    <h2 class="fw-bold mb-0"><i class="bi bi-cart-plus me-2 text-primary"></i>Reorder Suggestions</h2>
+    <p class="text-muted small mt-1 mb-0">Items below their target stock level based on dispensing velocity.</p>
+  </div>
+  <a href="{{ url_for('export_csv', export_type='reorder') }}" class="btn btn-sm btn-outline-secondary">
+    <i class="bi bi-download me-1"></i>Export CSV
+  </a>
+</div>
+
+{% set urgent_items = items | selectattr('action', 'equalto', 'ORDER_URGENT') | list %}
+{% set soon_items   = items | selectattr('action', 'equalto', 'ORDER_SOON')   | list %}
+
+<!-- Urgent -->
+{% if urgent_items %}
+<div class="card border-0 shadow-sm border-start border-danger border-4 mb-4">
+  <div class="card-header bg-white border-0 pt-3">
+    <h6 class="fw-bold text-danger mb-0">
+      <i class="bi bi-exclamation-octagon me-2"></i>Order Immediately
+      <span class="badge bg-danger ms-2">{{ urgent_items|length }}</span>
+    </h6>
+    <small class="text-muted">Less than 14 days of supply remaining. Order now to avoid stockout.</small>
+  </div>
+  <div class="card-body p-0">
+    <div class="table-responsive">
+      <table class="table table-hover align-middle mb-0">
+        <thead class="table-light">
+          <tr>
+            <th>Product</th>
+            <th>Class</th>
+            <th class="text-center">Adjusted Stock</th>
+            <th class="text-center">Avg/mo</th>
+            <th class="text-center">Days Supply</th>
+            <th class="text-center">Target Days</th>
+            <th>Suggested Order</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for r in urgent_items %}
+          <tr class="table-danger">
+            <td>
+              <div class="fw-semibold">{{ r.product.name }}</div>
+              <div class="text-muted small">
+                {{ r.product.category or '' }}
+                {% if r.product.ndc %} · {{ r.product.ndc }}{% endif %}
+              </div>
+            </td>
+            <td>{% include '_class_badge.html' %}</td>
+            <td class="text-center fw-bold text-danger">{{ r.adjusted_stock }} {{ r.product.unit }}(s)</td>
+            <td class="text-center small">{{ r.avg_monthly }}/mo</td>
+            <td class="text-center">
+              <span class="badge bg-danger">{{ r.days_of_supply | int if r.days_of_supply else 0 }}d</span>
+            </td>
+            <td class="text-center small text-muted">{{ r.target_days }}d</td>
+            <td class="small fw-semibold">{{ r.detail }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endif %}
+
+<!-- Order Soon -->
+{% if soon_items %}
+<div class="card border-0 shadow-sm border-start border-primary border-4 mb-4">
+  <div class="card-header bg-white border-0 pt-3">
+    <h6 class="fw-bold text-primary mb-0">
+      <i class="bi bi-cart-plus me-2"></i>Order at Next Opportunity
+      <span class="badge bg-primary ms-2">{{ soon_items|length }}</span>
+    </h6>
+    <small class="text-muted">14+ days supply remaining but below target level. Plan next order.</small>
+  </div>
+  <div class="card-body p-0">
+    <div class="table-responsive">
+      <table class="table table-hover align-middle mb-0">
+        <thead class="table-light">
+          <tr>
+            <th>Product</th>
+            <th>Class</th>
+            <th class="text-center">Adjusted Stock</th>
+            <th class="text-center">Avg/mo</th>
+            <th class="text-center">Days Supply</th>
+            <th class="text-center">Target Days</th>
+            <th>Suggested Order</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for r in soon_items %}
+          <tr>
+            <td>
+              <div class="fw-semibold small">{{ r.product.name }}</div>
+              <div class="text-muted" style="font-size:.72rem;">{{ r.product.category or '' }}</div>
+            </td>
+            <td>{% include '_class_badge.html' %}</td>
+            <td class="text-center small fw-bold">{{ r.adjusted_stock }} {{ r.product.unit }}(s)</td>
+            <td class="text-center small">{{ r.avg_monthly }}/mo</td>
+            <td class="text-center">
+              <span class="badge bg-primary">{{ r.days_of_supply | int if r.days_of_supply else 0 }}d</span>
+            </td>
+            <td class="text-center small text-muted">{{ r.target_days }}d</td>
+            <td class="small">{{ r.detail }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endif %}
+
+{% if not items %}
+<div class="card border-0 shadow-sm">
+  <div class="card-body text-center py-5 text-muted">
+    <i class="bi bi-check-circle fs-2 text-success"></i>
+    <p class="mt-2">All stocked items are at or above their target levels.</p>
+    {% if not status.has_dispense_data %}
+    <a href="{{ url_for('import_data') }}" class="btn btn-sm btn-outline-primary mt-2">Import EMS data to enable analysis</a>
+    {% endif %}
+  </div>
+</div>
+{% endif %}
+
+{% endblock %}
